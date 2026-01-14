@@ -1,0 +1,231 @@
+# k8sps
+
+A PowerShell shell wrapper including aliases and functions for kubectl that makes it easy to navigate between and execute commands on different Kubernetes clusters and namespaces.
+
+This is a PowerShell port of [k8sh](https://github.com/Comcast/k8sh), designed to provide the same functionality for Windows PowerShell users.
+
+## Requirements
+
+- PowerShell 5.1 or later (PowerShell 7+ recommended)
+- kubectl installed and in your PATH
+
+## Getting Started
+
+### Running k8sps
+
+You can run k8sps in two ways:
+
+**Option 1: Run directly**
+```powershell
+.\k8sps.ps1
+```
+
+**Option 2: Dot-source to load into current session**
+```powershell
+. .\k8sps.ps1
+```
+
+To make k8sps available from anywhere, add the script directory to your PATH or copy it to a directory already in your PATH.
+
+k8sps will automatically detect your current kubectl configuration to determine your current Kubernetes context and namespace.
+
+## Context and Namespace Commands
+
+k8sps automatically keeps track of the current context and namespace you are operating in. These are displayed when starting up k8sps.
+
+### Switch contexts
+
+```powershell
+ct <context_to_switch_to>
+```
+
+### List available contexts
+
+```powershell
+ct
+```
+The current context is highlighted with `*` in green.
+
+### Switch namespaces
+
+```powershell
+ns <namespace_to_switch_to>
+```
+
+### List available namespaces
+
+```powershell
+ns
+```
+The current namespace is highlighted with `*` in cyan.
+
+> **NOTE:** When changing the context, the change is made globally to kubectl using `kubectl config use-context`. The namespace, however, is kept track of by k8sps. The `k` command wrapper automatically includes the namespace that is currently selected within k8sps.
+
+## Aliases and Functions
+
+When inside k8sps, the `k` function wraps `kubectl` to automatically include the namespace that is currently selected.
+
+### k
+
+**k** is an easy shorthand for `kubectl` with automatic namespace inclusion.
+
+### Common Actions
+
+Shorthands for common kubectl actions:
+
+| Alias | Command |
+|-------|---------|
+| `describe` | k describe |
+| `get` | k get |
+| `create` | k create |
+| `apply` | k apply |
+| `delete` | k delete |
+| `scale` | k scale |
+| `rollout` | k rollout |
+| `logs` | k logs |
+| `explain` | k explain |
+
+### Resource Query Functions
+
+Instead of typing out `k get pods/services/deployments/etc`, simply use these functions:
+
+| Function | Resource |
+|----------|----------|
+| `pods` | pods |
+| `services` | services |
+| `deployments` / `dep` | deployments |
+| `replicasets` | replicasets |
+| `replicationcontrollers` / `rc` | replicationcontrollers |
+| `nodes` | nodes |
+| `limitranges` / `limits` | limitranges |
+| `events` | events |
+| `persistentvolumes` / `pv` | persistentvolumes |
+| `persistentvolumeclaims` / `pvc` | persistentvolumeclaims |
+| `namespaces` | namespaces |
+| `ingresses` / `ing` | ingresses |
+| `configmaps` | configmaps |
+| `secrets` | secrets |
+| `statefulsets` / `sts` | statefulsets |
+| `daemonsets` / `ds` | daemonsets |
+| `jobs` | jobs |
+| `cronjobs` / `cj` | cronjobs |
+
+All functions accept additional arguments that are passed to kubectl:
+```powershell
+pods -o wide
+deployments -l app=myapp
+```
+
+## Utility Functions
+
+k8sps includes several PowerShell-specific utility functions:
+
+### kexec
+
+Execute a command in a pod (defaults to `/bin/sh`):
+```powershell
+kexec <pod-name>
+kexec <pod-name> /bin/bash
+kexec <pod-name> -Container <container-name>
+```
+
+### kpf
+
+Port forward to a pod or service:
+```powershell
+kpf pod/mypod 8080:80
+kpf svc/myservice 3000:80
+```
+
+### klogs
+
+Get logs with common options:
+```powershell
+klogs <pod-name>
+klogs <pod-name> -Follow
+klogs <pod-name> -Tail 50
+klogs <pod-name> -Container <container-name>
+klogs <pod-name> -Previous
+```
+
+### kwatch
+
+Watch resources in real-time:
+```powershell
+kwatch pods
+kwatch deployments
+```
+
+### kdesc
+
+Describe resources:
+```powershell
+kdesc pod <pod-name>
+kdesc deployment <deployment-name>
+```
+
+## Tab Completion
+
+The `ct`, `ns`, and `k` commands all support tab completion with **fuzzy matching**.
+
+### Fuzzy Matching
+
+Tab completion supports fuzzy matching, so you don't need to type exact prefixes:
+
+| You type | Matches |
+|----------|---------|
+| `kbs` | kube-system |
+| `dft` | default |
+| `dpl` | deployments |
+| `pf` | port-forward |
+
+Matches are prioritized:
+1. **Exact match** - highest priority
+2. **Prefix match** - starts with your input
+3. **Contains match** - contains your input
+4. **Fuzzy match** - characters appear in order
+
+## Extensions
+
+On startup, k8sps looks for a `.k8sps_extensions.ps1` file in your home directory (`$HOME`). If found, it is dot-sourced, allowing you to define your own aliases and functions.
+
+### Reload extensions
+
+To reload extensions while in a k8sps session:
+```powershell
+reloadExtensions
+```
+
+### Example extensions
+
+See `examples/k8sps_extensions.ps1` for examples including:
+
+- Custom node display with version info
+- Busybox container launcher
+- Pod status overview
+- Troubled pods finder
+- Resource usage commands
+- Secret decoder
+- And more!
+
+To use the examples, copy to your home directory:
+```powershell
+Copy-Item .\examples\k8sps_extensions.ps1 $HOME\.k8sps_extensions.ps1
+```
+
+## Help
+
+For a quick reference of available commands:
+```powershell
+k8sps-help
+```
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DEFAULT_NAMESPACE` | Initial namespace when k8sps starts | `default` |
+
+## License
+
+See [LICENSE](LICENSE) file.

@@ -59,6 +59,31 @@ ns
 ```
 The current namespace is highlighted with `*` in cyan.
 
+### Interactive Selection
+
+Both `ct` and `ns` support an interactive mode with fuzzy filtering. Use the `-i` (or `-Interactive`) flag to open an interactive picker:
+
+```powershell
+ct -i    # Interactive context selection
+ns -i    # Interactive namespace selection
+```
+
+**Interactive Mode Controls:**
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Navigate up/down through the list |
+| Type characters | Fuzzy filter the list |
+| `Backspace` | Remove last filter character |
+| `Enter` | Select the highlighted item |
+| `Escape` | Cancel selection |
+
+**Features:**
+- **Fuzzy filtering** - Type to filter items (e.g., type `kbs` to match `kube-system`)
+- **Current item indicator** - The currently active context/namespace is marked with `(current)` in green
+- **Scroll support** - Long lists show scroll indicators (`▲ more above` / `▼ more below`)
+- **Item count** - Shows filtered vs total count at the bottom
+
 > **NOTE:** When changing the context, the change is made globally to kubectl using `kubectl config use-context`. The namespace, however, is kept track of by k8sps. The `k` command wrapper automatically includes the namespace that is currently selected within k8sps.
 
 ## Aliases and Functions

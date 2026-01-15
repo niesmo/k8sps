@@ -89,6 +89,200 @@ function Get-FuzzyMatches {
 }
 #endregion
 
+#region Interactive Selection
+function Show-InteractiveMenu {
+    <#
+    .SYNOPSIS
+        Show an interactive menu with fuzzy filtering
+    .DESCRIPTION
+        Displays a list of items that can be filtered by typing.
+        Use arrow keys to navigate, Enter to select, Escape to cancel.
+    .PARAMETER Items
+        Array of items to display
+    .PARAMETER Title
+        Title to show above the menu
+    .PARAMETER CurrentItem
+        The currently selected item (will be highlighted differently)
+    .PARAMETER HighlightColor
+        Color to use for highlighting the selected item
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Items,
+        
+        [Parameter()]
+        [string]$Title = "Select an item",
+        
+        [Parameter()]
+        [string]$CurrentItem = $null,
+        
+        [Parameter()]
+        [string]$HighlightColor = "Cyan"
+    )
+    
+    if ($Items.Count -eq 0) {
+        Write-Host "No items to display" -ForegroundColor Yellow
+        return $null
+    }
+    
+    $filter = ""
+    $selectedIndex = 0
+    $maxVisible = [Math]::Min(15, $Host.UI.RawUI.WindowSize.Height - 5)
+    $scrollOffset = 0
+    
+    # Save cursor position
+    $startPosition = $Host.UI.RawUI.CursorPosition
+    
+    # Hide cursor
+    $cursorVisible = [Console]::CursorVisible
+    [Console]::CursorVisible = $false
+    
+    try {
+        while ($true) {
+            # Apply fuzzy filter
+            if ([string]::IsNullOrEmpty($filter)) {
+                $filteredItems = $Items
+            } else {
+                $filteredItems = @(Get-FuzzyMatches -WordToComplete $filter -Candidates $Items)
+            }
+            
+            # Ensure selected index is valid
+            if ($filteredItems.Count -eq 0) {
+                $selectedIndex = 0
+            } elseif ($selectedIndex -ge $filteredItems.Count) {
+                $selectedIndex = $filteredItems.Count - 1
+            }
+            
+            # Adjust scroll offset
+            if ($selectedIndex -lt $scrollOffset) {
+                $scrollOffset = $selectedIndex
+            } elseif ($selectedIndex -ge $scrollOffset + $maxVisible) {
+                $scrollOffset = $selectedIndex - $maxVisible + 1
+            }
+            
+            # Move cursor to start position
+            $Host.UI.RawUI.CursorPosition = $startPosition
+            
+            # Draw title and filter
+            Write-Host "$Title " -ForegroundColor $HighlightColor -NoNewline
+            Write-Host "(↑↓ navigate, Enter select, Esc cancel)" -ForegroundColor Gray
+            Write-Host "Filter: " -NoNewline -ForegroundColor Yellow
+            Write-Host $filter -NoNewline
+            Write-Host ("_" + " " * 50) -ForegroundColor DarkGray  # Cursor indicator + clear rest of line
+            Write-Host ""
+            
+            # Draw items
+            $visibleCount = [Math]::Min($maxVisible, $filteredItems.Count)
+            
+            # Show scroll indicator at top if needed
+            if ($scrollOffset -gt 0) {
+                Write-Host "  ▲ more above" -ForegroundColor DarkGray
+            } else {
+                Write-Host (" " * 60)  # Clear line
+            }
+            
+            for ($i = 0; $i -lt $maxVisible; $i++) {
+                $itemIndex = $i + $scrollOffset
+                if ($itemIndex -lt $filteredItems.Count) {
+                    $item = $filteredItems[$itemIndex]
+                    $isSelected = ($itemIndex -eq $selectedIndex)
+                    $isCurrent = ($item -eq $CurrentItem)
+                    
+                    if ($isSelected) {
+                        Write-Host "► " -ForegroundColor $HighlightColor -NoNewline
+                        if ($isCurrent) {
+                            Write-Host $item -ForegroundColor Green -BackgroundColor DarkGray -NoNewline
+                            Write-Host " (current)" -ForegroundColor Green -NoNewline
+                        } else {
+                            Write-Host $item -ForegroundColor $HighlightColor -BackgroundColor DarkGray -NoNewline
+                        }
+                        Write-Host (" " * [Math]::Max(0, 50 - $item.Length))  # Clear rest of line
+                    } else {
+                        if ($isCurrent) {
+                            Write-Host "* " -ForegroundColor Green -NoNewline
+                            Write-Host $item -ForegroundColor Green -NoNewline
+                            Write-Host " (current)" -ForegroundColor DarkGreen -NoNewline
+                        } else {
+                            Write-Host "  $item" -NoNewline
+                        }
+                        Write-Host (" " * [Math]::Max(0, 50 - $item.Length))  # Clear rest of line
+                    }
+                } else {
+                    Write-Host (" " * 60)  # Clear line
+                }
+            }
+            
+            # Show scroll indicator at bottom if needed
+            if ($scrollOffset + $maxVisible -lt $filteredItems.Count) {
+                Write-Host "  ▼ more below ($($filteredItems.Count - $scrollOffset - $maxVisible) more)" -ForegroundColor DarkGray
+            } else {
+                Write-Host (" " * 60)  # Clear line
+            }
+            
+            # Show count
+            Write-Host ""
+            Write-Host "$($filteredItems.Count) of $($Items.Count) items" -ForegroundColor DarkGray -NoNewline
+            Write-Host (" " * 40)  # Clear rest of line
+            
+            # Read key
+            $key = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+            
+            switch ($key.VirtualKeyCode) {
+                13 {  # Enter
+                    if ($filteredItems.Count -gt 0) {
+                        # Clear the menu area
+                        $Host.UI.RawUI.CursorPosition = $startPosition
+                        for ($i = 0; $i -lt $maxVisible + 6; $i++) {
+                            Write-Host (" " * 60)
+                        }
+                        $Host.UI.RawUI.CursorPosition = $startPosition
+                        return $filteredItems[$selectedIndex]
+                    }
+                }
+                27 {  # Escape
+                    # Clear the menu area
+                    $Host.UI.RawUI.CursorPosition = $startPosition
+                    for ($i = 0; $i -lt $maxVisible + 6; $i++) {
+                        Write-Host (" " * 60)
+                    }
+                    $Host.UI.RawUI.CursorPosition = $startPosition
+                    return $null
+                }
+                38 {  # Up arrow
+                    if ($selectedIndex -gt 0) {
+                        $selectedIndex--
+                    }
+                }
+                40 {  # Down arrow
+                    if ($selectedIndex -lt $filteredItems.Count - 1) {
+                        $selectedIndex++
+                    }
+                }
+                8 {  # Backspace
+                    if ($filter.Length -gt 0) {
+                        $filter = $filter.Substring(0, $filter.Length - 1)
+                        $selectedIndex = 0
+                        $scrollOffset = 0
+                    }
+                }
+                default {
+                    # Add character to filter if it's printable
+                    $char = $key.Character
+                    if ($char -match '[\w\-\.]') {
+                        $filter += $char
+                        $selectedIndex = 0
+                        $scrollOffset = 0
+                    }
+                }
+            }
+        }
+    } finally {
+        # Restore cursor visibility
+        [Console]::CursorVisible = $cursorVisible
+    }
+}
+#endregion
+
 #region Context Functions
 function ct {
     <#
@@ -97,19 +291,41 @@ function ct {
     .DESCRIPTION
         Without arguments, lists all available contexts (current one highlighted).
         With an argument, switches to the specified context.
+        With -Interactive, shows an interactive fuzzy-filterable menu.
     .PARAMETER Context
         The name of the context to switch to
+    .PARAMETER Interactive
+        Show an interactive menu to select the context
     #>
     param(
         [Parameter(Position = 0)]
-        [string]$Context
+        [string]$Context,
+        
+        [Parameter()]
+        [Alias("i")]
+        [switch]$Interactive
     )
+    
+    $contexts = kubectl config get-contexts -o=name 2>$null | Sort-Object
+    $currentContext = kubectl config current-context 2>$null
+    
+    if ($Interactive) {
+        # Show interactive menu
+        $selected = Show-InteractiveMenu -Items $contexts -Title "Select Context" -CurrentItem $currentContext -HighlightColor "Red"
+        if ($selected) {
+            kubectl config use-context $selected
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Switched to context: " -NoNewline
+                Write-Host $selected -ForegroundColor $script:Colors.Red
+            }
+        } else {
+            Write-Host "Selection cancelled" -ForegroundColor Yellow
+        }
+        return
+    }
     
     if ([string]::IsNullOrWhiteSpace($Context)) {
         # List all contexts with current one highlighted
-        $contexts = kubectl config get-contexts -o=name 2>$null | Sort-Object
-        $currentContext = kubectl config current-context 2>$null
-        
         foreach ($ctx in $contexts) {
             if ($ctx -eq $currentContext) {
                 Write-Host "* " -ForegroundColor Green -NoNewline
@@ -149,19 +365,39 @@ function ns {
     .DESCRIPTION
         Without arguments, lists all available namespaces (current one highlighted).
         With an argument, switches to the specified namespace.
+        With -Interactive, shows an interactive fuzzy-filterable menu.
     .PARAMETER Namespace
         The name of the namespace to switch to
+    .PARAMETER Interactive
+        Show an interactive menu to select the namespace
     #>
     param(
         [Parameter(Position = 0)]
-        [string]$Namespace
+        [string]$Namespace,
+        
+        [Parameter()]
+        [Alias("i")]
+        [switch]$Interactive
     )
+    
+    $namespaces = k get namespaces -o=jsonpath='{range .items[*].metadata.name}{@}{"\n"}{end}' 2>$null
+    $nsList = $namespaces -split "`n" | Where-Object { $_ } | Sort-Object
+    
+    if ($Interactive) {
+        # Show interactive menu
+        $selected = Show-InteractiveMenu -Items $nsList -Title "Select Namespace" -CurrentItem $script:KUBECTL_NAMESPACE -HighlightColor "Cyan"
+        if ($selected) {
+            $script:KUBECTL_NAMESPACE = $selected
+            Write-Host "Switched to namespace: " -NoNewline
+            Write-Host $selected -ForegroundColor $script:Colors.Cyan
+        } else {
+            Write-Host "Selection cancelled" -ForegroundColor Yellow
+        }
+        return
+    }
     
     if ([string]::IsNullOrWhiteSpace($Namespace)) {
         # List all namespaces with current one highlighted
-        $namespaces = k get namespaces -o=jsonpath='{range .items[*].metadata.name}{@}{"\n"}{end}' 2>$null
-        $nsList = $namespaces -split "`n" | Where-Object { $_ } | Sort-Object
-        
         foreach ($ns in $nsList) {
             if ($ns -eq $script:KUBECTL_NAMESPACE) {
                 Write-Host "* " -ForegroundColor Cyan -NoNewline
@@ -519,7 +755,9 @@ function k8sps-help {
     Write-Host ""
     Write-Host "Context/Namespace:" -ForegroundColor Yellow
     Write-Host "  ct [context]     - List or switch contexts"
+    Write-Host "  ct -i            - Interactive context selection with fuzzy filtering"
     Write-Host "  ns [namespace]   - List or switch namespaces"
+    Write-Host "  ns -i            - Interactive namespace selection with fuzzy filtering"
     Write-Host ""
     Write-Host "kubectl Wrapper:" -ForegroundColor Yellow
     Write-Host "  k <args>         - kubectl with context/namespace"

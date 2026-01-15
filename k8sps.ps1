@@ -281,6 +281,55 @@ function Show-InteractiveMenu {
         [Console]::CursorVisible = $cursorVisible
     }
 }
+
+function Test-FzfAvailable {
+    <#
+    .SYNOPSIS
+        Check if fzf is available on the system
+    #>
+    $null = Get-Command fzf -ErrorAction SilentlyContinue
+    return $?
+}
+
+function Invoke-FzfSelection {
+    <#
+    .SYNOPSIS
+        Use fzf for interactive selection
+    .PARAMETER Items
+        Array of items to select from
+    .PARAMETER Header
+        Header text to display
+    .PARAMETER CurrentItem
+        The currently selected item (will be marked)
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Items,
+        
+        [Parameter()]
+        [string]$Header = "Select an item",
+        
+        [Parameter()]
+        [string]$CurrentItem = $null
+    )
+    
+    # Mark current item if specified
+    $displayItems = $Items | ForEach-Object {
+        if ($_ -eq $CurrentItem) {
+            "$_ (current)"
+        } else {
+            $_
+        }
+    }
+    
+    $selected = $displayItems | fzf --header $Header --height 40% --reverse
+    
+    if ($selected) {
+        # Remove the " (current)" suffix if present
+        return $selected -replace ' \(current\)$', ''
+    }
+    return $null
+}
 #endregion
 
 #region Context Functions
@@ -310,8 +359,12 @@ function ct {
     $currentContext = kubectl config current-context 2>$null
     
     if ($Interactive) {
-        # Show interactive menu
+        # Use fzf if available, otherwise fall back to custom menu
+        if (Test-FzfAvailable) {
+            $selected = Invoke-FzfSelection -Items $contexts -Header "Select Context" -CurrentItem $currentContext
+        } else {
         $selected = Show-InteractiveMenu -Items $contexts -Title "Select Context" -CurrentItem $currentContext -HighlightColor "Red"
+        }
         if ($selected) {
             kubectl config use-context $selected
             if ($LASTEXITCODE -eq 0) {
@@ -384,8 +437,12 @@ function ns {
     $nsList = $namespaces -split "`n" | Where-Object { $_ } | Sort-Object
     
     if ($Interactive) {
-        # Show interactive menu
+        # Use fzf if available, otherwise fall back to custom menu
+        if (Test-FzfAvailable) {
+            $selected = Invoke-FzfSelection -Items $nsList -Header "Select Namespace" -CurrentItem $script:KUBECTL_NAMESPACE
+        } else {
         $selected = Show-InteractiveMenu -Items $nsList -Title "Select Namespace" -CurrentItem $script:KUBECTL_NAMESPACE -HighlightColor "Cyan"
+        }
         if ($selected) {
             $script:KUBECTL_NAMESPACE = $selected
             Write-Host "Switched to namespace: " -NoNewline

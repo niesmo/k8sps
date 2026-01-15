@@ -132,6 +132,30 @@ ns -i    # Interactive namespace selection
 - **Scroll support** - Long lists show scroll indicators (`▲ more above` / `▼ more below`)
 - **Item count** - Shows filtered vs total count at the bottom
 
+### fzf Integration
+
+If you have [fzf](https://github.com/junegunn/fzf) installed, k8sps will automatically use it for interactive selection instead of the built-in menu. fzf provides a faster, more powerful fuzzy finding experience.
+
+**Installing fzf:**
+
+| Platform | Installation |
+|----------|--------------|
+| Windows (Chocolatey) | `choco install fzf` |
+| Windows (Scoop) | `scoop install fzf` |
+| Windows (winget) | `winget install fzf` |
+| macOS | `brew install fzf` |
+| Linux (apt) | `sudo apt install fzf` |
+| Linux (dnf) | `sudo dnf install fzf` |
+
+For more installation options, see the [fzf installation guide](https://github.com/junegunn/fzf#installation).
+
+When fzf is detected:
+- `ct -i` and `ns -i` will use fzf for selection
+- The current context/namespace is marked with `(current)`
+- Full fzf features are available (advanced fuzzy matching, preview, etc.)
+
+If fzf is not installed, k8sps falls back to the built-in interactive menu described above.
+
 > **NOTE:** When changing the context, the change is made globally to kubectl using `kubectl config use-context`. The namespace, however, is kept track of by k8sps. The `k` command wrapper automatically includes the namespace that is currently selected within k8sps.
 
 ## Aliases and Functions

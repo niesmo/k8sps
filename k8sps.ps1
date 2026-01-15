@@ -363,7 +363,7 @@ function ct {
         if (Test-FzfAvailable) {
             $selected = Invoke-FzfSelection -Items $contexts -Header "Select Context" -CurrentItem $currentContext
         } else {
-        $selected = Show-InteractiveMenu -Items $contexts -Title "Select Context" -CurrentItem $currentContext -HighlightColor "Red"
+            $selected = Show-InteractiveMenu -Items $contexts -Title "Select Context" -CurrentItem $currentContext -HighlightColor "Red"
         }
         if ($selected) {
             kubectl config use-context $selected
@@ -441,7 +441,7 @@ function ns {
         if (Test-FzfAvailable) {
             $selected = Invoke-FzfSelection -Items $nsList -Header "Select Namespace" -CurrentItem $script:KUBECTL_NAMESPACE
         } else {
-        $selected = Show-InteractiveMenu -Items $nsList -Title "Select Namespace" -CurrentItem $script:KUBECTL_NAMESPACE -HighlightColor "Cyan"
+            $selected = Show-InteractiveMenu -Items $nsList -Title "Select Namespace" -CurrentItem $script:KUBECTL_NAMESPACE -HighlightColor "Cyan"
         }
         if ($selected) {
             $script:KUBECTL_NAMESPACE = $selected
@@ -584,7 +584,11 @@ function Reload-Extensions {
     $extensionsPath = Join-Path $HOME ".k8sps_extensions.ps1"
     if (Test-Path $extensionsPath) {
         Write-Host "Sourcing $extensionsPath..."
-        . $extensionsPath
+        # Remove existing extensions module if loaded
+        Remove-Module -Name k8sps_extensions -ErrorAction SilentlyContinue
+        # Load as dynamic module so functions are exported globally
+        $content = Get-Content $extensionsPath -Raw
+        New-Module -Name k8sps_extensions -ScriptBlock ([scriptblock]::Create($content)) | Import-Module -Global
     }
 }
 Set-Alias -Name reloadExtensions -Value Reload-Extensions -Scope Script

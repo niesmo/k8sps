@@ -27,6 +27,54 @@ You can run k8sps in two ways:
 
 To make k8sps available from anywhere, add the script directory to your PATH or copy it to a directory already in your PATH.
 
+<details>
+<summary><strong>Adding to Your PowerShell Profile</strong></summary>
+
+To have k8sps automatically available in every PowerShell session, add it to your PowerShell profile:
+
+1. **Find your profile path:**
+   ```powershell
+   $PROFILE
+   ```
+
+2. **Create the profile if it doesn't exist:**
+   ```powershell
+   if (!(Test-Path -Path $PROFILE)) {
+       New-Item -ItemType File -Path $PROFILE -Force
+   }
+   ```
+
+3. **Add k8sps to your profile:**
+   ```powershell
+   # Open your profile in your default editor
+   notepad $PROFILE
+   
+   # Or with VS Code
+   code $PROFILE
+   ```
+
+4. **Add one of the following lines to your profile:**
+
+   ```powershell
+   # Option A: Dot-source to load all functions into your session
+   . "C:\path\to\k8sps.ps1"
+   
+   # Option B: Create an alias to run k8sps on demand
+   Set-Alias -Name k8sps -Value "C:\path\to\k8sps.ps1"
+   ```
+
+   Replace `C:\path\to\k8sps.ps1` with the actual path to your k8sps.ps1 file.
+
+5. **Reload your profile or restart PowerShell:**
+   ```powershell
+   . $PROFILE
+   ```
+
+> **TIP:** If you want the k8sps prompt to be enabled automatically, uncomment the `Set-K8sPrompt` line in the `Initialize-K8sps` function, or add `Set-K8sPrompt` to your profile after sourcing k8sps.
+
+</details>
+
+<br />
 k8sps will automatically detect your current kubectl configuration to determine your current Kubernetes context and namespace.
 
 ## Context and Namespace Commands
